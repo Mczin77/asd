@@ -1,46 +1,25 @@
 import fs from "fs";
-import path from "path";
 
 export default function handler(req, res) {
-    const { user, pass, hours } = req.query;
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Método não permitido" });
+  }
 
-    const dbPath = path.join(process.cwd(), "db.json");
-    const db = JSON.parse(fs.readFileSync(dbPath));
+  const { secret } = req.body;
 
-    // Login
-    if (db.logins[user] !== pass) {
-        return res.status(403).json({ status: "LOGIN_FAILED" });
-    }
+  if (secret !== process.env.PANEL_SECRET) {
+    return res.status(401).json({ error: "Não autorizado" });
+  }
 
-    // Gerar key
-    function makeKey() {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
-        let s = "";
-        for (let i = 0; i < 20; i++) {
-            s += chars[Math.floor(Math.random() * chars.length)];
-        }
-        return "KEY-" + s;
-    }
+  const key = Math.random().toString(36).substring(2, 10).toUpperCase();
 
-    const key = makeKey();
+  const db = JSON.parse(fs.readFileSync("db.json", "utf8"));
+  db.keys.push({
+    key,
+    createdAt: Date.now()
+  });
 
-    // Expiração (em horas)
-    const expiresAt = hours ? Date.now() + hours * 60 * 60 * 1000 : 0;
+  fs.writeFileSync("db.json", JSON.stringify(db, null, 2));
 
-    db.keys.push({
-        key,
-        createdAt: Date.now(),
-        expiresAt,
-        lastUse: 0,
-        usedBy: "None",
-        executor: "None",
-        ip: "None"
-    });
-
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 4));
-
-    return res.status(200).json({
-        status: "GENERATED",
-        key
-    });
+  res.status(200).json({ key });
 }
