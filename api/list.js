@@ -1,13 +1,16 @@
+// /api/list.js
 import kv from "./kv";
 
 export default async function handler(req, res) {
-    const keys = await kv.keys("key:*");
-    const all = [];
+  const token = req.headers["x-panel-token"];
+  if (!token) return res.status(401).json({ error: "unauth" });
 
-    for (const k of keys) {
-        const data = await kv.hgetall(k);
-        all.push(data);
-    }
+  const keys = await kv.smembers("keys:set");
+  const arr = [];
+  for (const k of keys) {
+    const d = await kv.hgetall(`key:${k}`);
+    if (d && Object.keys(d).length) arr.push(d);
+  }
 
-    return res.status(200).json(all);
+  return res.status(200).json({ ok: true, keys: arr });
 }
