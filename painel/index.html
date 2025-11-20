@@ -1,30 +1,72 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Painel de Keys</title>
-<style>
-body{background:#0a0a0a;font-family:Arial;color:#0ff;text-align:center;padding-top:100px;}
-input,button{padding:10px;margin:5px;}
-.card{background:#111;padding:25px;width:350px;margin:auto;border-radius:10px;box-shadow:0 0 20px #0ff;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Key Panel — Mczin</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div class="card">
-<h2>Gerar Key</h2>
-<input id="time" type="number" placeholder="Minutos">
-<br>
-<button onclick="generateKey()">Gerar Key</button>
-<p id="result"></p>
-</div>
-<script>
-async function generateKey(){
- let t = document.getElementById("time").value;
- let r = await fetch(`/api/generate?minutes=${t}`);
- let j = await r.json();
- document.getElementById("result").innerText = `KEY: ${j.key}\nExpira: ${new Date(j.expires).toLocaleString()}`;
-}
-</script>
+  <div class="container">
+    <div class="card" style="grid-row:1 / span 2">
+      <div class="header">
+        <div class="logo">K</div>
+        <div>
+          <h3 class="h1">Mczin Keys</h3>
+          <div class="small">Gerencie suas keys — expiração, uso, logs</div>
+        </div>
+      </div>
+
+      <div id="authBox" style="margin-top:15px;">
+        <h4>Login</h4>
+        <input id="user" placeholder="Usuário" class="input" />
+        <input id="pass" placeholder="Senha" type="password" class="input" />
+        <div style="margin-top:8px">
+          <button class="btn-primary" onclick="login()">Entrar</button>
+        </div>
+      </div>
+
+      <div id="mainApp" style="display:none;margin-top:14px">
+        <div class="controls">
+          <div class="row">
+            <select id="type" class="input">
+              <option value="normal">Normal</option>
+              <option value="vip">VIP (lifetime)</option>
+            </select>
+          </div>
+          <div class="row">
+            <input id="days" type="number" placeholder="Dias" class="input" />
+            <input id="hours" type="number" placeholder="Horas" class="input" />
+            <input id="minutes" type="number" placeholder="Minutos" class="input" />
+          </div>
+          <button class="btn-primary" onclick="generateKeyUI()">Gerar Key</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="topbar">
+        <div>
+          <div class="small-muted">Keys Ativas</div>
+        </div>
+        <div class="badge">Painel seguro</div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Expira</th>
+            <th>Usos</th>
+            <th>Executor</th>
+            <th>IP</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="keysBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
