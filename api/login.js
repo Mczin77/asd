@@ -1,9 +1,10 @@
-export default function handler(req, res) {
-  const { user, pass } = req.body;
 
-  if (user === process.env.PANEL_USER && pass === process.env.PANEL_PASS) {
-    return res.json({ ok: true, secret: process.env.PANEL_SECRET });
-  }
+module.exports = (req, res) => {
+    const user = req.query.user;
+    const pass = req.query.pass;
 
-  res.json({ ok: false });
-}
+    if (user === "admin" && pass === "admin123") {
+        return res.json({success:true, token:"OK"});
+    }
+    res.json({success:false});
+};
