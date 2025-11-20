@@ -1,54 +1,30 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-<title>Painel KeySystem</title>
+<meta charset="UTF-8">
+<title>Painel de Keys</title>
+<style>
+body{background:#0a0a0a;font-family:Arial;color:#0ff;text-align:center;padding-top:100px;}
+input,button{padding:10px;margin:5px;}
+.card{background:#111;padding:25px;width:350px;margin:auto;border-radius:10px;box-shadow:0 0 20px #0ff;}
+</style>
 </head>
 <body>
-
-<h2>Login</h2>
-<input id="user" placeholder="Usuário"><br>
-<input id="pass" placeholder="Senha" type="password"><br>
-<button onclick="login()">Entrar</button>
-
-<hr>
-
+<div class="card">
 <h2>Gerar Key</h2>
-<button onclick="genKey()">Gerar</button>
-
-<pre id="out"></pre>
-
+<input id="time" type="number" placeholder="Minutos">
+<br>
+<button onclick="generateKey()">Gerar Key</button>
+<p id="result"></p>
+</div>
 <script>
-let secret = null;
-
-async function login() {
-  const r = await fetch("/api/login", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      user: document.getElementById("user").value,
-      pass: document.getElementById("pass").value
-    })
-  });
-  const j = await r.json();
-  if (j.ok) {
-    secret = j.secret;
-    alert("Logado!");
-  } else {
-    alert("Login inválido");
-  }
-}
-
-async function genKey() {
-  if (!secret) return alert("Faça login!");
-  const r = await fetch("/api/generate", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ secret })
-  });
-  const j = await r.json();
-  document.getElementById("out").innerText = j.key || "Erro";
+async function generateKey(){
+ let t = document.getElementById("time").value;
+ let r = await fetch(`/api/generate?minutes=${t}`);
+ let j = await r.json();
+ document.getElementById("result").innerText = `KEY: ${j.key}\nExpira: ${new Date(j.expires).toLocaleString()}`;
 }
 </script>
-
 </body>
 </html>
