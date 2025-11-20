@@ -1,9 +1,9 @@
-module.exports = (req, res) => {
-    const user = req.query.user;
-    const pass = req.query.pass;
+export default function handler(req, res) {
+    const { user, pass } = req.body;
 
-    if (user === "admin" && pass === "admin123") {
-        return res.json({success:true, token:"OK"});
+    if (user === "admin" && pass === "123") {
+        return res.status(200).json({ auth: true });
     }
-    res.json({success:false});
-};
+
+    return res.status(401).json({ auth: false });
+}
