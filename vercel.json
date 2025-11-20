@@ -1,1 +1,10 @@
-
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/*.js", "use": "@vercel/node" },
+    { "src": "painel/index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/painel/(.*)", "dest": "/painel/index.html" }
+  ]
+}
