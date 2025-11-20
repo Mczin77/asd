@@ -1,25 +1,27 @@
-import fs from "fs";
+const fs = require("fs");
+const path = require("path");
 
-export default function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Método não permitido" });
-  }
+module.exports = (req, res) => {
+    const dbPath = path.join(__dirname, "..", "db.json");
+    const db = JSON.parse(fs.readFileSync(dbPath));
 
-  const { secret } = req.body;
+    const minutes = parseInt(req.query.minutes) || 60;
+    const key = Math.random().toString(36).substring(2, 15);
+    const expires = Date.now() + minutes * 60 * 1000;
 
-  if (secret !== process.env.PANEL_SECRET) {
-    return res.status(401).json({ error: "Não autorizado" });
-  }
+    db.keys.push({
+        key,
+        expires,
+        ip: null,
+        executor: null,
+        used: false
+    });
 
-  const key = Math.random().toString(36).substring(2, 10).toUpperCase();
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
 
-  const db = JSON.parse(fs.readFileSync("db.json", "utf8"));
-  db.keys.push({
-    key,
-    createdAt: Date.now()
-  });
-
-  fs.writeFileSync("db.json", JSON.stringify(db, null, 2));
-
-  res.status(200).json({ key });
-}
+    res.json({
+        success: true,
+        key,
+        expires
+    });
+};
