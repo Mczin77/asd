@@ -1,26 +1,16 @@
 import { redis } from "./redis.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
+  if (req.method !== "POST")
     return res.status(405).json({ error: "Método não permitido" });
-  }
 
   const token = req.headers["x-panel-token"];
-  if (!token) return res.status(401).json({ error: "Token ausente" });
+  if (!token) return res.status(401).json({ error: "Sem token" });
 
-  // aqui você pode validar token depois, por enquanto aceitar tudo
   const { key } = req.body;
-  if (!key) return res.status(400).json({ error: "Key obrigatória" });
+  if (!key) return res.json({ ok: false });
 
-  // keys são salvas como key:ABCD-1234-XYZ
-  const redisKey = `key:${key}`;
-
-  const exists = await redis.exists(redisKey);
-  if (!exists) {
-    return res.json({ ok: false, error: "Key não encontrada" });
-  }
-
-  await redis.del(redisKey);
+  await redis.del(`key:${key}`);
 
   return res.json({ ok: true });
 }
