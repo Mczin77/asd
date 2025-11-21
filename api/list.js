@@ -1,16 +1,17 @@
 import { redis } from "./redis.js";
 
 export default async function handler(req, res) {
-  const token = req.headers["x-panel-token"];
-  if (!token) return res.status(403).json({ ok: false });
-
-  const keys = await redis.lrange("keys:list", 0, -1);
-  const full = [];
-
-  for (const k of keys) {
-    const data = await redis.get(`key:${k}`);
-    if (data) full.push(data);
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Método não permitido" });
   }
 
-  return res.status(200).json({ ok: true, keys: full });
+  const keys = await redis.keys("user:*");
+  const users = [];
+
+  for (let key of keys) {
+    const data = await redis.hgetall(key);
+    users.push(data);
+  }
+
+  return res.json({ users });
 }
