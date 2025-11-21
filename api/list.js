@@ -1,16 +1,16 @@
 import { redis } from "./redis.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "GET")
-    return res.status(405).json({ error: "method" });
+  const token = req.headers["x-panel-token"];
+  if (!token) return res.status(403).json({ ok: false });
 
-  const keys = await redis.keys("*");
-  const data = [];
+  const keys = await redis.lrange("keys:list", 0, -1);
+  const full = [];
 
   for (const k of keys) {
-    const value = await redis.get(k);
-    data.push({ key: k, value });
+    const data = await redis.get(`key:${k}`);
+    if (data) full.push(data);
   }
 
-  return res.status(200).json({ ok: true, data });
+  return res.status(200).json({ ok: true, keys: full });
 }
