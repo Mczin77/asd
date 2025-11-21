@@ -6,14 +6,16 @@
 <title>Painel Administrativo</title>
 
 <style>
+    /* SEGURANÇA VISUAL: O corpo começa invisível */
     body {
+        display: none; /* Esconde tudo até verificar o login */
         margin: 0;
         padding: 0;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         background: #0f0f0f;
         color: #e0e0e0;
-        display: flex;
         height: 100vh;
+        /* flex será adicionado via JS se o login for ok */
     }
 
     /* MENU LATERAL */
@@ -78,108 +80,66 @@
     }
 
     /* FORMULÁRIOS */
-    .form-row {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-    }
-
-    .input-group {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
-
-    .input-group label {
-        font-size: 12px;
-        margin-bottom: 5px;
-        color: #888;
-    }
-
-    input, select {
-        background: #252525;
-        border: 1px solid #333;
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        outline: none;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    input:focus, select:focus {
-        border-color: #00aaff;
-    }
-
-    .btn-primary {
-        background: #00aaff;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-weight: bold;
-        white-space: nowrap;
-    }
+    .form-row { display: flex; gap: 10px; margin-bottom: 20px; align-items: flex-end; flex-wrap: wrap; }
+    .input-group { display: flex; flex-direction: column; flex: 1; }
+    .input-group label { font-size: 12px; margin-bottom: 5px; color: #888; }
+    input, select { background: #252525; border: 1px solid #333; color: white; padding: 10px; border-radius: 5px; outline: none; width: 100%; box-sizing: border-box; }
+    input:focus, select:focus { border-color: #00aaff; }
+    
+    .btn-primary { background: #00aaff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; white-space: nowrap; }
     .btn-primary:hover { background: #0088cc; }
 
     /* TABELAS */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-        font-size: 14px;
-    }
-
-    th {
-        text-align: left;
-        padding: 12px;
-        background: #252525;
-        color: #aaa;
-        font-weight: normal;
-    }
-
-    td {
-        padding: 12px;
-        border-bottom: 1px solid #2a2a2a;
-        vertical-align: middle;
-    }
-
-    tr:hover td {
-        background: #202020;
-    }
-
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th { text-align: left; padding: 12px; background: #252525; color: #aaa; font-weight: normal; }
+    td { padding: 12px; border-bottom: 1px solid #2a2a2a; vertical-align: middle; }
+    tr:hover td { background: #202020; }
+    
     .tag-vip { background: #ffd700; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
     .tag-time { background: #00aaff; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
 
-    .btn-delete {
-        background: #ff4d4d;
-        color: white;
-        border: none;
-        padding: 5px 10px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-    }
+    .btn-delete { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
     .btn-delete:hover { background: #cc0000; }
 
-    /* User Info Box */
-    .discord-box {
-        display: flex; 
-        align-items: center; 
-        gap: 15px; 
-        background: #222; 
-        padding: 15px; 
-        border-radius: 8px; 
-        border: 1px solid #333;
-        margin-top: 20px;
-    }
+    .discord-box { display: flex; align-items: center; gap: 15px; background: #222; padding: 15px; border-radius: 8px; border: 1px solid #333; margin-top: 20px; }
 
 </style>
 </head>
 <body>
+
+<script>
+(async function protectRoute() {
+    const token = localStorage.getItem("panel_token");
+    
+    // 1. Se não tem token, tchau
+    if (!token) {
+        window.location.href = "/";
+        return;
+    }
+
+    try {
+        // 2. Pergunta pro servidor se o token é real
+        const res = await fetch("/api/check", {
+            headers: { "x-panel-token": token }
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+            // 3. Se for real, mostra o site
+            document.body.style.display = "flex";
+            // Inicia o carregamento dos dados
+            loadHome(); 
+        } else {
+            // 4. Se o servidor disser que é falso, remove e tchau
+            localStorage.removeItem("panel_token");
+            window.location.href = "/";
+        }
+    } catch (e) {
+        // Erro de rede? Bloqueia por segurança
+        window.location.href = "/";
+    }
+})();
+</script>
 
 <div class="sidebar">
     <div>
@@ -196,21 +156,19 @@
     </div>
 
 <script>
-// --- AUTENTICAÇÃO ---
+// --- FUNÇÕES GERAIS ---
+
 const token = localStorage.getItem("panel_token");
-if (!token) {
-    window.location.href = "/";
-}
 
 function logout() {
     localStorage.removeItem("panel_token");
     window.location.href = "/";
 }
 
-// --- VARIÁVEIS GLOBAIS ---
-let foundUser = null; // Armazena o usuário do Discord encontrado
+// Variáveis globais
+let foundUser = null;
 
-// --- CARREGAMENTO DE PÁGINAS ---
+// --- CARREGAMENTO ---
 
 function loadHome() {
     document.getElementById("content").innerHTML = `
@@ -227,8 +185,7 @@ async function loadKeys() {
 
     try {
         const response = await fetch("/api/list", {
-            method: "GET",
-            headers: { "x-panel-token": token }
+            method: "GET", headers: { "x-panel-token": token }
         });
         const data = await response.json();
 
@@ -284,7 +241,6 @@ async function loadKeys() {
 
             const typeBadge = k.type === "vip" ? `<span class="tag-vip">VIP</span>` : `<span class="tag-time">TEMP</span>`;
             
-            // Mostra info do dono se existir
             let ownerInfo = "-";
             if(k.ownerName) {
                 ownerInfo = `
@@ -293,7 +249,6 @@ async function loadKeys() {
                         <span>${k.ownerName}</span>
                     </div>`;
             } else {
-                 // Se não tem dono, mostra info de execução (IP)
                  ownerInfo = `<span style="font-size:12px; color:#888;">IP: ${k.usedByIP || "-"}</span>`;
             }
 
@@ -322,7 +277,6 @@ async function loadUsers() {
     contentDiv.innerHTML = '<div class="card"><h3>Carregando...</h3></div>';
 
     try {
-        // Busca keys para popular o Select
         const resKeys = await fetch("/api/list", { headers: { "x-panel-token": token } });
         const dataKeys = await resKeys.json();
         const allKeys = dataKeys.keys || [];
@@ -336,9 +290,7 @@ async function loadUsers() {
         contentDiv.innerHTML = `
             <div class="card">
                 <h3>Vincular Discord a uma Key 🎮</h3>
-                <p style="color:#888; font-size:13px; margin-bottom:15px;">
-                    Cole o <b>ID do usuário</b> (ex: 70123...) para buscar a foto, depois selecione a key dele.
-                </p>
+                <p style="color:#888; font-size:13px; margin-bottom:15px;">Cole o ID do usuário para buscar.</p>
 
                 <div class="form-row" style="align-items: flex-end;">
                     <div class="input-group" style="flex:1">
@@ -361,10 +313,10 @@ async function loadUsers() {
 
                 <div id="assignArea" style="display:none; margin-top:20px;">
                     <div class="input-group">
-                        <label>Escolha a Key para este usuário:</label>
+                        <label>Escolha a Key:</label>
                         <select id="keySelect" style="width:100%; padding:12px;">${optionsHtml}</select>
                     </div>
-                    <button class="btn-primary" style="width:100%; margin-top:15px; background:#00d26a;" onclick="saveUserToKey()">✅ Vincular Usuário à Key</button>
+                    <button class="btn-primary" style="width:100%; margin-top:15px; background:#00d26a;" onclick="saveUserToKey()">✅ Vincular</button>
                 </div>
             </div>
 
@@ -382,143 +334,90 @@ async function loadUsers() {
                 </table>
             </div>
         `;
-
         renderLinkedUsers(allKeys);
-
     } catch (e) {
         contentDiv.innerHTML = `<div class="card"><h3 style="color:red">Erro</h3><p>${e.message}</p></div>`;
     }
 }
 
-// --- LÓGICA DO DISCORD ---
+// --- LÓGICA DISCORD/KEYS ---
 
 async function searchDiscordUser() {
     const id = document.getElementById("discordIdInput").value.trim();
     if (!id) return alert("Digite um ID!");
-
     const btn = document.querySelector("button[onclick='searchDiscordUser()']");
-    const oldText = btn.innerText;
-    btn.innerText = "Buscando...";
-    
+    const old = btn.innerText; btn.innerText = "...";
     try {
         const res = await fetch(`/api/discord?id=${id}`);
         const data = await res.json();
-
         if (!data.ok) {
-            alert("Usuário não encontrado! Verifique se o ID está correto e se o token do Bot está configurado.");
+            alert("Usuário não encontrado!");
             document.getElementById("discordResult").style.display = "none";
-            document.getElementById("assignArea").style.display = "none";
         } else {
-            foundUser = data; 
+            foundUser = data;
             document.getElementById("discordResult").style.display = "flex";
             document.getElementById("assignArea").style.display = "block";
-            
             document.getElementById("userAvatar").src = data.avatar;
             document.getElementById("userName").innerText = data.global_name || data.username;
             document.getElementById("userIdDisplay").innerText = "ID: " + data.id;
         }
-    } catch (e) {
-        alert("Erro na API");
-    } finally {
-        btn.innerText = oldText;
-    }
+    } catch (e) { alert("Erro na API"); } finally { btn.innerText = old; }
 }
 
 async function saveUserToKey() {
     const key = document.getElementById("keySelect").value;
-    if (!key || !foundUser) return alert("Selecione uma key e busque um usuário primeiro.");
-
-    if(!confirm(`Vincular ${foundUser.username} à key ${key}?`)) return;
-
+    if (!key || !foundUser) return alert("Selecione uma key e busque um usuário.");
+    if(!confirm(`Vincular?`)) return;
     try {
         const res = await fetch("/api/assign", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-panel-token": token },
-            body: JSON.stringify({
-                key: key,
-                discordId: foundUser.id,
-                discordName: foundUser.username,
-                discordAvatar: foundUser.avatar
-            })
+            method: "POST", headers: { "Content-Type": "application/json", "x-panel-token": token },
+            body: JSON.stringify({ key: key, discordId: foundUser.id, discordName: foundUser.username, discordAvatar: foundUser.avatar })
         });
-
         const json = await res.json();
-        if (json.ok) {
-            alert("Vinculado com sucesso!");
-            loadUsers(); // Recarrega a tela
-        } else {
-            alert("Erro: " + json.error);
-        }
-    } catch (e) {
-        alert("Erro ao salvar");
-    }
+        if (json.ok) { alert("Sucesso!"); loadUsers(); } else { alert("Erro: " + json.error); }
+    } catch (e) { alert("Erro ao salvar"); }
 }
 
 function renderLinkedUsers(keys) {
     const tbody = document.getElementById("usersTableBody");
-    const linkedKeys = keys.filter(k => k.ownerId); // Filtra só quem tem dono
-
-    if (linkedKeys.length === 0) {
-        tbody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:20px; color:#666;'>Nenhum usuário vinculado ainda.</td></tr>";
-        return;
-    }
-
+    const linkedKeys = keys.filter(k => k.ownerId);
+    if (linkedKeys.length === 0) { tbody.innerHTML = "<tr><td colspan='3' style='text-align:center; padding:20px;'>Vazio</td></tr>"; return; }
     let html = "";
     linkedKeys.forEach(k => {
-        html += `
-            <tr>
-                <td>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <img src="${k.ownerAvatar}" style="width:30px; height:30px; border-radius:50%;">
-                        <span>${k.ownerName}</span>
-                    </div>
-                </td>
-                <td style="font-family:monospace; color:#00aaff;">${k.key}</td>
-                <td><button class="btn-delete" onclick="alert('Delete a key para desvincular.')">Desvincular</button></td>
-            </tr>
-        `;
+        html += `<tr>
+                <td><div style="display:flex;align-items:center;gap:10px;"><img src="${k.ownerAvatar}" style="width:30px;height:30px;border-radius:50%;"><span>${k.ownerName}</span></div></td>
+                <td style="font-family:monospace;color:#00aaff;">${k.key}</td>
+                <td><button class="btn-delete" onclick="alert('Delete a key para desvincular.')">X</button></td>
+            </tr>`;
     });
     tbody.innerHTML = html;
 }
-
-// --- FUNÇÕES DE API (KEYS) ---
 
 async function createKey() {
     const type = document.getElementById("typeInput").value;
     const days = parseInt(document.getElementById("daysInput").value) || 0;
     const hours = parseInt(document.getElementById("hoursInput").value) || 0;
-    
-    const btn = document.querySelector("button[onclick='createKey()']");
-    btn.innerText = "..."; btn.disabled = true;
-
     try {
         const res = await fetch("/api/generate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-panel-token": token },
+            method: "POST", headers: { "Content-Type": "application/json", "x-panel-token": token },
             body: JSON.stringify({ type, days, hours, minutes: 0 })
         });
-        const json = await res.json();
-        if (json.ok) loadKeys();
-        else alert("Erro: " + json.error);
-    } catch (e) { alert("Erro conexão"); } 
-    finally { btn.innerText = "+ Gerar Key"; btn.disabled = false; }
-}
-
-async function deleteKey(key) {
-    if (!confirm(`Apagar a key ${key}?`)) return;
-    try {
-        const res = await fetch("/api/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-panel-token": token },
-            body: JSON.stringify({ key })
-        });
-        if ((await res.json()).ok) loadKeys();
-        else alert("Erro ao deletar");
+        if ((await res.json()).ok) loadKeys(); else alert("Erro ao criar");
     } catch (e) { alert("Erro conexão"); }
 }
 
-// Inicia na Home
-loadHome();
+async function deleteKey(key) {
+    if (!confirm(`Apagar key ${key}?`)) return;
+    try {
+        const res = await fetch("/api/delete", {
+            method: "POST", headers: { "Content-Type": "application/json", "x-panel-token": token },
+            body: JSON.stringify({ key })
+        });
+        if ((await res.json()).ok) loadKeys(); else alert("Erro");
+    } catch (e) { alert("Erro conexão"); }
+}
+
+// Nota: loadHome() será chamado automaticamente pela função protectRoute() lá em cima
 </script>
 
 </body>
