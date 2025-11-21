@@ -1,15 +1,15 @@
 import { redis } from "./redis.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST")
-    return res.status(405).json({ error: "method" });
+  if (req.method !== "POST") return res.status(405).json({ error: "method" });
 
-  const { key } = req.body || {};
+  const token = req.headers["x-panel-token"];
+  if (!token) return res.status(403).json({ ok: false });
 
-  if (!key)
-    return res.status(400).json({ error: "missing key" });
+  const { key } = req.body;
 
-  await redis.del(key);
+  await redis.del(`key:${key}`);
+  await redis.lrem("keys:list", 0, key);
 
   return res.status(200).json({ ok: true });
 }
