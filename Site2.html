@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Prompts IA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            padding: 40px 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(255,68,68,0.05) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(68,138,255,0.05) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(255,198,68,0.03) 0%, transparent 50%);
+            animation: drift 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes drift {
+            0%, 100% { transform: translate(0,0) rotate(0deg); }
+            50% { transform: translate(-5%,5%) rotate(1deg); }
+        }
+
+        /* INTRO */
+        .intro-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #0a0a0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeOut 0.5s ease 2.8s forwards;
+        }
+
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+
+        .intro-content {
+            text-align: center;
+            animation: introAnim 2.8s ease;
+        }
+
+        @keyframes introAnim {
+            0%   { opacity: 0; transform: translateY(20px); }
+            20%  { opacity: 1; transform: translateY(0); }
+            80%  { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .intro-content h2 { font-size: 32px; font-weight: 600; color: #fff; margin-bottom: 12px; letter-spacing: -0.5px; }
+        .intro-content p { font-size: 16px; color: rgba(255,255,255,0.5); }
+        .intro-content .discord { color: rgba(255,255,255,0.75); font-weight: 500; margin-top: 8px; }
+
+        /* CONTAINER */
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            background: rgba(18,18,18,0.8);
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+        }
+
+        .header { color: #fff; padding: 40px 35px 35px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .header h1 { font-size: 24px; margin-bottom: 8px; font-weight: 600; letter-spacing: -0.5px; }
+        .header p { opacity: 0.5; font-size: 14px; }
+
+        .content { padding: 35px; }
+        .form-group { margin-bottom: 28px; }
+
+        label { display: block; font-weight: 500; margin-bottom: 10px; color: rgba(255,255,255,0.85); font-size: 13px; letter-spacing: 0.3px; }
+
+        input[type="text"], input[type="password"], textarea {
+            width: 100%; padding: 13px 14px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.03);
+            color: #fff; font-size: 14px;
+            transition: all 0.2s; font-family: inherit;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
+            outline: none; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05);
+        }
+
+        textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+        .hint { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 7px; }
+
+        /* TYPE SELECTOR */
+        .type-selector { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .type-btn {
+            flex: 1; padding: 12px 16px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.5);
+            font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
+            min-width: 120px;
+        }
+
+        .type-btn:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.75); }
+        .type-btn.active { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: #fff; }
+
+        /* UPLOAD */
+        .upload-zone {
+            border: 1px dashed rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.02);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.04); }
+
+        .upload-zone input[type="file"] {
+            position: absolute; inset: 0;
+            opacity: 0; cursor: pointer;
+            width: 100%; height: 100%;
+            padding: 0; border: none; background: transparent;
+        }
+
+        .upload-placeholder { padding: 32px 20px; }
+        .upload-placeholder p { color: rgba(255,255,255,0.4); font-size: 14px; margin-bottom: 6px; }
+        .upload-placeholder span { color: rgba(255,255,255,0.22); font-size: 12px; }
+
+        #imagePreview {
+            display: none; width: 100%;
+            max-height: 260px; object-fit: contain;
+            background: rgba(0,0,0,0.4);
+        }
+
+        #imagePreview.visible { display: block; }
+
+        .remove-image {
+            display: none; width: 100%; padding: 10px;
+            background: rgba(255,68,68,0.08);
+            border: none; border-top: 1px solid rgba(255,68,68,0.2);
+            color: rgba(255,100,100,0.85);
+            font-size: 12px; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+
+        .remove-image:hover { background: rgba(255,68,68,0.18); }
+        .remove-image.visible { display: block; }
+
+        /* BTN */
+        .btn {
+            background: #fff; color: #000; border: none;
+            padding: 14px 24px; font-size: 14px; font-weight: 500;
+            cursor: pointer; width: 100%; transition: all 0.15s; letter-spacing: 0.2px;
+        }
+
+        .btn:hover { background: #f0f0f0; }
+        .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* RESULT */
+        .result-container {
+            margin-top: 35px; border-top: 1px solid rgba(255,255,255,0.06);
+            padding-top: 28px; display: none;
+        }
+
+        .result-container.show { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+        .result-header h3 {
+            color: rgba(255,255,255,0.85); font-size: 13px;
+            font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase;
+        }
+
+        .copy-btn {
+            background: transparent; color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 7px 14px; font-size: 12px;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
+        }
+
+        .copy-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+        .result-text {
+            background: rgba(255,255,255,0.03); padding: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            white-space: pre-wrap; word-wrap: break-word;
+            line-height: 1.7; color: rgba(255,255,255,0.75);
+            max-height: 450px; overflow-y: auto; font-size: 14px;
+        }
+
+        .result-text::-webkit-scrollbar { width: 6px; }
+        .result-text::-webkit-scrollbar-track { background: transparent; }
+        .result-text::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+
+        /* LOADING */
+        .loading { display: none; text-align: center; margin-top: 24px; color: rgba(255,255,255,0.5); }
+        .loading.show { display: block; }
+
+        .spinner {
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top: 2px solid rgba(255,255,255,0.6);
+            border-radius: 50%; width: 32px; height: 32px;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* ERROR */
+        .error {
+            background: rgba(255,68,68,0.1); color: #ff6b6b;
+            padding: 14px 16px; border: 1px solid rgba(255,68,68,0.3);
+            margin-top: 18px; display: none; font-size: 13px;
+        }
+
+        .error.show { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="intro-screen">
+    <div class="intro-content">
+        <h2>Gerador de Prompts IA</h2>
+        <p>Desenvolvido por</p>
+        <p class="discord">Mczin7</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="header">
+        <h1>Gerador de Prompts para IA</h1>
+        <p>Crie prompts detalhados para vídeos, imagens, edição e memes inusitados com IA</p>
+    </div>
+
+    <div class="content">
+        <form id="promptForm">
+
+            <div class="form-group">
+                <label>API KEY</label>
+                <input type="password" id="apiKey" placeholder="Cole sua chave de API do Gemini" required>
+                <div class="hint">Chave salva localmente no navegador | aistudio.google.com/apikey</div>
+            </div>
+
+            <div class="form-group">
+                <label>TIPO DE CONTEÚDO</label>
+                <div class="type-selector">
+                    <button type="button" class="type-btn active" data-type="video">Vídeo</button>
+                    <button type="button" class="type-btn" data-type="image">Imagem</button>
+                    <button type="button" class="type-btn" data-type="edit">Editar Imagem</button>
+                    <button type="button" class="type-btn" data-type="meme">IA Meme</button>
+                </div>
+            </div>
+
+            <div class="form-group" id="uploadGroup" style="display:none;">
+                <label>IMAGEM PARA EDITAR</label>
+                <div class="upload-zone" id="uploadZone">
+                    <input type="file" id="imageUpload" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <div class="upload-placeholder" id="uploadPlaceholder">
+                        <p>Clique ou arraste uma imagem aqui</p>
+                        <span>PNG, JPG, WEBP ou GIF</span>
+                    </div>
+                    <img id="imagePreview" alt="Preview da imagem">
+                </div>
+                <button type="button" class="remove-image" id="removeImage">Remover imagem</button>
+                <div class="hint">Envie a imagem que deseja editar</div>
+            </div>
+
+            <div class="form-group">
+                <label id="themeLabel">TEMA</label>
+                <textarea id="theme" placeholder="Descreva o conceito ou ideia..." required></textarea>
+                <div class="hint" id="themeHint">Seja específico sobre o que você quer ver</div>
+            </div>
+
+            <button type="submit" class="btn" id="generateBtn">Gerar Prompt</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Gerando...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result-container" id="resultContainer">
+            <div class="result-header">
+                <h3>Resultado</h3>
+                <button class="copy-btn" id="copyBtn">Copiar</button>
+            </div>
+            <div class="result-text" id="resultText"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const form            = document.getElementById('promptForm');
+    const apiKeyInput     = document.getElementById('apiKey');
+    const themeInput      = document.getElementById('theme');
+    const themeLabel      = document.getElementById('themeLabel');
+    const themeHint       = document.getElementById('themeHint');
+    const generateBtn     = document.getElementById('generateBtn');
+    const loadingEl       = document.getElementById('loading');
+    const errorEl         = document.getElementById('error');
+    const resultContainer = document.getElementById('resultContainer');
+    const resultText      = document.getElementById('resultText');
+    const copyBtn         = document.getElementById('copyBtn');
+    const typeBtns        = document.querySelectorAll('.type-btn');
+    const uploadGroup     = document.getElementById('uploadGroup');
+    const uploadZone      = document.getElementById('uploadZone');
+    const imageUpload     = document.getElementById('imageUpload');
+    const imagePreview    = document.getElementById('imagePreview');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const removeImageBtn  = document.getElementById('removeImage');
+
+    let currentType          = 'video';
+    let uploadedImageBase64  = null;
+    let uploadedImageMime    = null;
+
+    // ── localStorage ───────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem('gemini_api_key');
+        if (saved) apiKeyInput.value = saved;
+    });
+
+    apiKeyInput.addEventListener('input', () => {
+        const v = apiKeyInput.value.trim();
+        v ? localStorage.setItem('gemini_api_key', v) : localStorage.removeItem('gemini_api_key');
+    });
+
+    // ── Seletor de tipo ────────────────────────────────────────────
+    typeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            typeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentType = btn.dataset.type;
+            updateUI();
+        });
+    });
+
+    function updateUI() {
+        if (currentType === 'edit') {
+            uploadGroup.style.display = 'block';
+            themeLabel.textContent    = 'O QUE DESEJA ALTERAR';
+            themeInput.placeholder    = 'Descreva as edições que quer fazer na imagem...';
+            themeHint.textContent     = 'Ex: mudar o fundo para floresta, adicionar chuva, trocar a cor da roupa...';
+        } else if (currentType === 'meme') {
+            uploadGroup.style.display = 'none';
+            themeLabel.textContent    = 'CENA DO MEME';
+            themeInput.placeholder    = 'Ex: Neymar, Messi e CR7 comendo marmita na roça / Políticos em um ônibus lotado...';
+            themeHint.textContent     = 'Descreva os personagens famosos e a situação inusitada, humilde ou engraçada que eles estão vivendo';
+        } else {
+            uploadGroup.style.display = 'none';
+            themeLabel.textContent    = 'TEMA';
+            themeInput.placeholder    = 'Descreva o conceito ou ideia...';
+            themeHint.textContent     = 'Seja específico sobre o que você quer ver';
+        }
+    }
+
+    // ── Upload / Drag & Drop ───────────────────────────────────────
+    imageUpload.addEventListener('change', (e) => {
+        if (e.target.files[0]) loadImageFile(e.target.files[0]);
+    });
+
+    uploadZone.addEventListener('dragover',  (e) => { e.preventDefault(); uploadZone.style.borderColor = 'rgba(255,255,255,0.5)'; });
+    uploadZone.addEventListener('dragleave', ()  => { uploadZone.style.borderColor = ''; });
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.style.borderColor = '';
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) loadImageFile(file);
+    });
+
+    function loadImageFile(file) {
+        uploadedImageMime = file.type;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const result         = ev.target.result;
+            uploadedImageBase64  = result.split(',')[1];
+            imagePreview.src     = result;
+            imagePreview.classList.add('visible');
+            uploadPlaceholder.style.display = 'none';
+            imageUpload.style.pointerEvents = 'none';
+            removeImageBtn.classList.add('visible');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    removeImageBtn.addEventListener('click', () => {
+        uploadedImageBase64  = null;
+        uploadedImageMime    = null;
+        imagePreview.src     = '';
+        imagePreview.classList.remove('visible');
+        uploadPlaceholder.style.display = 'block';
+        imageUpload.value               = '';
+        imageUpload.style.pointerEvents = 'auto';
+        removeImageBtn.classList.remove('visible');
+    });
+
+    // ── Copiar ─────────────────────────────────────────────────────
+    copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(resultText.textContent).then(() => {
+            copyBtn.textContent = 'Copiado';
+            setTimeout(() => copyBtn.textContent = 'Copiar', 2000);
+        });
+    });
+
+    // ── Submit ─────────────────────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const apiKey = apiKeyInput.value.trim();
+        const theme  = themeInput.value.trim();
+
+        if (!apiKey || !theme) { showError('Por favor, preencha todos os campos!'); return; }
+        if (currentType === 'edit' && !uploadedImageBase64) { showError('Por favor, envie uma imagem para editar!'); return; }
+
+        localStorage.setItem('gemini_api_key', apiKey);
+        errorEl.classList.remove('show');
+        resultContainer.classList.remove('show');
+        loadingEl.classList.add('show');
+        generateBtn.disabled = true;
+
+        try {
+            let requestBody;
+
+            if (currentType === 'edit') {
+                requestBody = {
+                    contents: [{
+                        parts: [
+                            {
+                                inline_data: {
+                                    mime_type: uploadedImageMime,
+                                    data: uploadedImageBase64
+                                }
+                            },
+                            {
+                                text: `You are an expert in AI image editing prompts. Analyze the uploaded image carefully and generate an EXTREMELY DETAILED prompt in ENGLISH for editing this image using AI tools like Adobe Firefly, Stable Diffusion Inpainting, DALL-E, or similar.
+
+The editing prompt must include:
+1. Detailed description of the requested changes
+2. How to preserve the original elements that should remain unchanged
+3. Style and artistic consistency with the original image
+4. Technical details for the AI editing tool (inpainting, outpainting, style transfer, etc.)
+5. Lighting and color adjustments needed
+6. Negative prompt suggestions (what to avoid)
+7. Suggested AI editing techniques and tools
+
+USER'S EDIT REQUEST: ${theme}
+
+IMPORTANT: Write the entire prompt in ENGLISH, ready to be used directly in AI image editing tools like Adobe Firefly, Stable Diffusion, DALL-E, Gemini Imagen, or similar.`
+                            }
+                        ]
+                    }]
+                };
+            } else {
+                const textPrompts = {
+                    video: `You are an expert in generating prompts for AI video generation. Create an EXTREMELY DETAILED and professional prompt for video generation based on the following theme:
+
+THEME: ${theme}
+
+The prompt should include:
+1. Detailed visual description (colors, lighting, composition)
+2. Camera movement and dynamics (angles, transitions, zoom)
+3. Atmosphere and mood (feeling, emotional tone)
+4. Artistic style and visual references
+5. Technical details (4K/8K quality, suggested fps, aspect ratio)
+6. Suggested sound elements (music, ambient sound effects)
+7. Estimated duration and temporal structure (beginning, middle, end)
+8. Visual effects and post-production
+
+Format the prompt clearly, ready to be used in tools like Runway, Pika, Luma AI, or similar.
+IMPORTANT: Write the entire prompt in ENGLISH.`,
+
+                    image: `You are an expert in generating prompts for AI image generation. Create an EXTREMELY DETAILED and professional prompt for image generation based on the following theme:
+
+THEME: ${theme}
+
+The prompt should include:
+1. Complete visual description (composition, main and secondary elements)
+2. Colors and palette (specific tones, saturation, contrast)
+3. Lighting (type of light, direction, intensity, shadows)
+4. Artistic style (photorealism, digital painting, 3D, illustration, etc.)
+5. Atmosphere and mood (feeling the image conveys)
+6. Technical details (resolution, quality, rendering)
+7. Texture and materials
+8. Perspective and framing
+9. Artist or style references (if applicable)
+
+Format the prompt clearly, ready to be used in tools like Midjourney, DALL-E, Stable Diffusion, Leonardo AI, Gemini Imagen, or similar.
+IMPORTANT: Write the entire prompt in ENGLISH.`,
+
+                    meme: `You are an expert in generating prompts for AI image generation. Create an EXTREMELY DETAILED and professional prompt for generating a highly realistic, funny, and out-of-context "meme" image based on the following theme:
+
+THEME: ${theme}
+
+The prompt should include:
+1. Photorealistic and authentic style (amateur photo style, shot on smartphone or DSLR, highly detailed, unglamorous, realistic candid photography).
+2. Precise description of the characters (celebrities, politicians, athletes) and their facial expressions, making them look natural in the situation.
+3. The absurd, everyday, or highly specific context (e.g., eating a traditional Brazilian "marmita" in a rural field, riding a crowded public bus, frying an egg on a small stove).
+4. Details of the environment, clothing (casual, dirty, or completely out of their usual character), and specific props (e.g., styrofoam coolers, cheap plastic chairs, thermos, dirt, rural backgrounds).
+5. Lighting and atmosphere (natural harsh sunlight, unflattering bus lighting, etc.) to enhance the realism.
+
+Format the prompt clearly, ready to be used directly in tools like Midjourney v6, DALL-E 3, or Stable Diffusion.
+IMPORTANT: Write the entire prompt in ENGLISH.`
+                };
+
+                requestBody = {
+                    contents: [{ parts: [{ text: textPrompts[currentType] }] }]
+                };
+            }
+
+            const response = await fetch(
+                'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+                {
+                    method: 'POST',
+                    headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                }
+            );
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || `Erro ${response.status}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) throw new Error('Resposta inválida da API');
+
+            resultText.textContent = text;
+            resultContainer.classList.add('show');
+
+        } catch (err) {
+            showError(`Erro ao gerar prompt: ${err.message}`);
+        } finally {
+            loadingEl.classList.remove('show');
+            generateBtn.disabled = false;
+        }
+    });
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add('show');
+        setTimeout(() => errorEl.classList.remove('show'), 5000);
+    }
+</script>
+</body>
+</html>
